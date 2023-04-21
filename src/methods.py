@@ -67,16 +67,13 @@ def leverrier(A):
 
 
 
-    
-
-
 def krylov(A):
     raise NotImplementedError("This method still needs to be implemented.")
     return coeffs
 
 
 def hyman(A):
-    raise NotImplementedError("This method still needs to be implemented.")
+    
     return coeffs
 
 
