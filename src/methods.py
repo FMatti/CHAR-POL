@@ -30,7 +30,44 @@ def baseline(A, d=16):
 
 
 def leverrier(A):
-    raise NotImplementedError("This method still needs to be implemented.")
+    """
+    Given an n x n matrix A, this function returns the coefficients of it's
+    characteristic polynomial:
+
+        p(x) := det(x*I - A) = c_0 * x^n + c_1 * x^(n - 1) + ... + c_n
+
+    The property of p(x) is that: 
+
+        c_0 = 1, c_n = (-1)^n * det(A)
+
+    Parameters
+    ----------
+    A : np.array, shape (n, n)
+        Matrix A.
+
+    Returns
+    -------
+    c : np.array, 
+        The coefficients of the characteristic polynomial: c = [c_0, c_1, ..., c_n]
+    """
+    n = A.shape[0]
+    c = []
+    c.append(1.)
+    Bk = A.astype(np.float64)
+
+    for k in range(1, n + 1):
+        # calculate the k_th coefficient (Newton's identity)
+        ck = -Bk.trace() / k
+        # add the coefficient to the solution
+        c.append(ck.item())
+
+        Bk += np.multiply(ck, np.identity(n))
+        Bk = A @ Bk
+    return np.array(c)
+
+
+
+    
 
 
 def krylov(A):
