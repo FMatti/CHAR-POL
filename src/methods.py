@@ -69,9 +69,6 @@ def leverrier(A):
 
 
 
-    
-
-
 def krylov(A, b=None):
     """
     Computes the coefficients of the characteristic polynomial of a matrix A
@@ -116,7 +113,7 @@ def krylov(A, b=None):
 
 
 def hyman(A):
-    raise NotImplementedError("This method still needs to be implemented.")
+    
     return coeffs
 
 
