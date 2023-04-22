@@ -33,8 +33,8 @@ def baseline(A, d=16):
 
 def leverrier(A):
     """
-    Given an n x n matrix A, this function returns the coefficients of it's
-    characteristic polynomial:
+    Computes the coefficients of the characteristic polynomial 
+    of an n x n matrix A using Leverrier’s method:
 
         p(x) := det(x*I - A) = c_0 * x^n + c_1 * x^(n - 1) + ... + c_n
 
@@ -44,28 +44,28 @@ def leverrier(A):
 
     Parameters
     ----------
-    A : np.array, shape (n, n)
-        Matrix A.
+    A : numpy.ndarray or scipy.sparse.spmatrix
+        The matrix for which the characteristic polynomial is computed.
 
     Returns
     -------
-    c : np.array, 
-        The coefficients of the characteristic polynomial: c = [c_0, c_1, ..., c_n]
+    coeffs : numpy.ndarray
+        The coefficients of the characteristic polynomial of A: coeffs = [c_0, c_1, ..., c_n]
     """
     n = A.shape[0]
-    c = []
-    c.append(1.)
+    coeffs = []
+    coeffs.append(1.)
     Bk = A.astype(np.float64)
 
     for k in range(1, n + 1):
         # calculate the k_th coefficient (Newton's identity)
         ck = -Bk.trace() / k
         # add the coefficient to the solution
-        c.append(ck.item())
+        coeffs.append(ck.item())
 
         Bk += np.multiply(ck, np.identity(n))
         Bk = A @ Bk
-    return np.array(c)
+    return np.array(coeffs)
 
 
 
@@ -113,7 +113,49 @@ def krylov(A, b=None):
 
 
 def hyman(A):
+    """
+    Computes the coefficients of the characteristic polynomial of a matrix A
+    using the Hyman’s method for Hessenberg matrices. 
+
+    Parameters
+    ----------
+    A : numpy.ndarray or scipy.sparse.spmatrix
+        The matrix for which the characteristic polynomial is computed.
+
+    Returns
+    -------
+    coeffs : numpy.ndarray
+        The coefficients of the characteristic polynomial of A.
+    """
+    n = len(A)
+
+    # compose matrix F and a vector f_n
+    F = np.zeros((n,n))
+    ut_A = np.zeros((n,n))
+
+    uti = np.triu_indices(n, -1)
+    uti_n = np.triu_indices(n)
+    ut_A[uti] = A[uti]
+    F[uti_n[0][1:], uti_n[1][1:]] = ut_A[np.triu_indices(n,-1,n-1)]
+    F[0, 0] = -1
+
+    f_n = A[:,-1]
+
+    # compose matrix G and a vector g_n
+    G = np.diag(np.ones(n-1),1)
+    g_n = np.zeros(n)
+    g_n[n-1] = 1
+
+    X = np.zeros((n, n+1))
+    X[:, 0] = np.linalg.solve(F, - f_n)
+    X[:, 1] = np.linalg.solve(F, G.dot(X[:, 0]) + g_n)
     
+    for i in range(2,n+1):
+        X[:, i] = np.linalg.solve(F, G.dot(X[:, i-1]) + g_n)
+
+    # TODO: understand how to extract coeffs 
+    coeffs = None
+
     return coeffs
 
 
