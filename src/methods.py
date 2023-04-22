@@ -121,7 +121,39 @@ def hyman(A):
 
 
 def summation(A):
-    raise NotImplementedError("This method still needs to be implemented.")
+    """
+    Computes the coefficients of the characteristic polynomial of a matrix A
+    using the summation method based on the eigenvalues. 
+
+    Parameters
+    ----------
+    A : numpy.ndarray or scipy.sparse.spmatrix
+        The matrix for which the characteristic polynomial is computed.
+
+    Returns
+    -------
+    coeffs : numpy.ndarray
+        The coefficients of the characteristic polynomial of A collected in
+        descending order in a numpy array. Example:
+
+            cp_A(x) = 5*x^3 - 9*x + 3   ===>   coeffs = [5, 0, 9, 3]
+    """
+    A = _verify_input(A, convert_to_numpy=True)
+    n = len(A)
+
+    # Compue the eigenvalues of the matrix A
+    eigenvalues = np.linalg.eig(A)[0]
+
+    # Apply the summation algorithm to obtain the elementary functions
+    s = np.zeros(n+1, dtype=eigenvalues.dtype)
+    s[0] = 1
+    s[1] = eigenvalues[0]
+
+    for i in range(2, n+1):
+        s[1:i+1] += eigenvalues[i-1]*s[:i]
+
+    # Deduce the coefficients of the characteristic polynomial
+    coeffs = s * (-1)**np.arange(n+1)
     return coeffs
 
 
