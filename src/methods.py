@@ -3,10 +3,10 @@ import scipy as sp
 import sympy as sy
 
 
-def baseline(A, d=16):
+def baseline(A, d=500):
     """
     Computes the coefficients of the characteristic polynomial of a matrix A
-    symbolically using the SymPy python library. 
+    symbolically using the SymPy python library.
 
     Parameters
     ----------
@@ -24,8 +24,14 @@ def baseline(A, d=16):
             cp_A(x) = 5*x^3 - 9*x + 3   ===>   coeffs = [5, 0, 9, 3]
     """
     A = _verify_input(A, convert_to_numpy=True)
+
+    # Compute characteristic polynomial symbolically
     charpol = sy.Matrix(A).charpoly(x='x')
+
+    # Extract the coefficients of the characteristic polynomial to a numpy array
     coeffs = np.array([c.evalf(d) for c in charpol.coeffs()], dtype=np.float64)
+
+    # In the leading coefficients are zero, we have to manually add them
     if (diff := len(A) - len(coeffs)) >= 0:
         coeffs = np.append(coeffs, np.zeros(diff + 1))
     return coeffs
@@ -69,7 +75,7 @@ def leverrier(A):
 
 
 
-def krylov(A, b=None):
+def krylov(A, b=None, seed=None):
     """
     Computes the coefficients of the characteristic polynomial of a matrix A
     using the Krylov method. 
@@ -78,10 +84,13 @@ def krylov(A, b=None):
     ----------
     A : numpy.ndarray or scipy.sparse.spmatrix
         The matrix for which the characteristic polynomial is computed.
-    b : int
+    b : int, optional, default is None
         Vector used to generate the Krylov basis:
 
-            [b, A*b, A^2*b, ..., A^(k-1)*b]
+            K_n(A, b) = [b, A*b, A^2*b, ..., A^(n-1)*b]
+
+    seed : int, optional, default is None
+        If argument b is None, this seed is used to generate b randomly.
 
     Returns
     -------
@@ -91,24 +100,25 @@ def krylov(A, b=None):
 
             cp_A(x) = 5*x^3 - 9*x + 3   ===>   coeffs = [5, 0, 9, 3]
     """
-    A = _verify_input(A, convert_to_numpy=True)
-    n = len(A)
+    # Check if the matrix A is of a type compatible with the algorithm
+    A = _verify_input(A, convert_to_numpy=False)
+    n = A.shape[0]
 
     # Generate a random vector, if no Krylov basis vector was given
     if b is None:
         b = np.random.randn(n)
 
     # Generate the Krylov basis
-    K = np.empty((n, n))
+    K = np.empty((n, n), dtype=A.dtype)
     K[:, 0] = b
     for i in range(1, n):
         K[:, i] = A @ K[:, i-1]
 
-    # Compute the companion matrix
-    companion_matrix = np.linalg.solve(K, A @ K)
+    # Compute last column of the companion matrix (solve K c = A^n b)
+    c = np.linalg.solve(K, A @ K[:, -1])
 
-    # Derive coefficients from last column of companion matrix
-    coeffs = np.append(1, -companion_matrix[::-1, -1])
+    # Create coefficients vector based on last column of the companion matrix
+    coeffs = np.append(1, -c[::-1])
     return coeffs
 
 
@@ -178,7 +188,7 @@ def summation(A):
             cp_A(x) = 5*x^3 - 9*x + 3   ===>   coeffs = [5, 0, 9, 3]
     """
     A = _verify_input(A, convert_to_numpy=True)
-    n = len(A)
+    n = A.shape[0]
 
     # Compue the eigenvalues of the matrix A
     eigenvalues = np.linalg.eig(A)[0]
@@ -198,7 +208,7 @@ def summation(A):
 
 def _verify_input(A, convert_to_numpy=False):
     if convert_to_numpy and isinstance(A, sp.sparse.spmatrix):
-        A = A.todense()
+        A = A.toarray()
     elif not isinstance(A, np.ndarray | sp.sparse.spmatrix):
         msg = "Argument 'A' must be numpy.ndarray or scipy.sparse.spmatrix" \
               + ", but got {}.".format(type(A).__name__)
