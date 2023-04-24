@@ -23,7 +23,7 @@ def baseline(A, d=500):
 
             cp_A(x) = 5*x^3 - 9*x + 3   ===>   coeffs = [5, 0, 9, 3]
     """
-    A = _verify_input(A, convert_to_numpy=True)
+    A, n = _verify_input(A, convert_to_numpy=True)
 
     # Compute characteristic polynomial symbolically
     charpol = sy.Matrix(A).charpoly(x='x')
@@ -32,7 +32,7 @@ def baseline(A, d=500):
     coeffs = np.array([c.evalf(d) for c in charpol.coeffs()], dtype=np.float64)
 
     # In the leading coefficients are zero, we have to manually add them
-    if (diff := len(A) - len(coeffs)) >= 0:
+    if (diff := n - len(coeffs)) >= 0:
         coeffs = np.append(coeffs, np.zeros(diff + 1))
     return coeffs
 
@@ -101,21 +101,20 @@ def krylov(A, b=None, seed=None):
             cp_A(x) = 5*x^3 - 9*x + 3   ===>   coeffs = [5, 0, 9, 3]
     """
     # Check if the matrix A is of a type compatible with the algorithm
-    A = _verify_input(A, convert_to_numpy=False)
-    n = A.shape[0]
+    A, n = _verify_input(A, convert_to_numpy=False)
 
     # Generate a random vector, if no Krylov basis vector was given
     if b is None:
         b = np.random.randn(n)
 
     # Generate the Krylov basis
-    K = np.empty((n, n), dtype=A.dtype)
+    K = np.empty((n, n))
     K[:, 0] = b
     for i in range(1, n):
         K[:, i] = A @ K[:, i-1]
 
     # Compute last column of the companion matrix (solve K c = A^n b)
-    c = np.linalg.solve(K, A @ K[:, -1])
+    c = np.linalg.lstsq(K, A @ K[:, -1], rcond=None)[0]
 
     # Create coefficients vector based on last column of the companion matrix
     coeffs = np.append(1, -c[::-1])
@@ -187,22 +186,16 @@ def summation(A):
 
             cp_A(x) = 5*x^3 - 9*x + 3   ===>   coeffs = [5, 0, 9, 3]
     """
-    A = _verify_input(A, convert_to_numpy=True)
-    n = A.shape[0]
+    A, n = _verify_input(A, convert_to_numpy=True)
 
     # Compue the eigenvalues of the matrix A
     eigenvalues = np.linalg.eig(A)[0]
 
-    # Apply the summation algorithm to obtain the elementary functions
-    s = np.zeros(n+1, dtype=eigenvalues.dtype)
-    s[0] = 1
-    s[1] = eigenvalues[0]
+    # Perform the summation algorithm to obtain the coefficients
+    coeffs = np.append(1, np.zeros_like(eigenvalues))
+    for i in range(n):
+        coeffs[1:i+2] -= eigenvalues[i]*coeffs[:i+1]
 
-    for i in range(2, n+1):
-        s[1:i+1] += eigenvalues[i-1]*s[:i]
-
-    # Deduce the coefficients of the characteristic polynomial
-    coeffs = s * (-1)**np.arange(n+1)
     return coeffs
 
 
@@ -213,4 +206,4 @@ def _verify_input(A, convert_to_numpy=False):
         msg = "Argument 'A' must be numpy.ndarray or scipy.sparse.spmatrix" \
               + ", but got {}.".format(type(A).__name__)
         raise TypeError(msg)
-    return A
+    return A, A.shape[0]
