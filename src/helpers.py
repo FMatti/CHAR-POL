@@ -12,9 +12,7 @@ def compute_coefficient_errors(coeffs, coeffs_baseline, mode="absolute"):
     return errors
 
 
-def plot_coefficient_errors(A, method, mode="absolute", ax=None):
-    coeffs_baseline = baseline(A)
-    coeffs = method(A)
+def plot_coefficient_errors(coeffs, coeffs_baseline, mode="absolute", ax=None):
     errors = compute_coefficient_errors(coeffs, coeffs_baseline, mode)
 
     if ax is None:
