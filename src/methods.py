@@ -121,7 +121,55 @@ def krylov(A, b=None, seed=None):
     return coeffs
 
 
-def hyman(A):
+def hyman(A, b=None, seed=None):
+    """
+    Computes the coefficients of the characteristic polynomial of a matrix A
+    using the Hyman's method.
+
+    Parameters
+    ----------
+    A : numpy.ndarray or scipy.sparse.spmatrix
+        The matrix for which the characteristic polynomial is computed.
+    b : int, optional, default is None
+        Vector used to compute Arnoldi decomposition with.
+    seed : int, optional, default is None
+        If argument b is None, this seed is used to generate b randomly.
+
+    Returns
+    -------
+    coeffs : numpy.ndarray
+        The coefficients of the characteristic polynomial of A.
+    """
+    # Check if the matrix A is of a type compatible with the algorithm
+    A, n = _verify_input(A, convert_to_numpy=False)
+
+    # Generate a random vector, if no Krylov basis vector was given
+    if b is None:
+        b = np.random.randn(n)
+
+    # Compute Hessenberg matrix resulting from a full Arnoldi decomposition of A
+    A_hessenberg = _arnoldi_decomposition(A, b)
+
+    # Compute the iteration vectors/matrices
+    F = np.c_[-np.eye(n, 1, 0), A_hessenberg[:, :-1]]
+    f_n = A_hessenberg[:, -1]
+
+    G = np.eye(n, n, 1)
+    g_n = np.eye(1, n, n-1).flatten()
+
+    # Perform the iterative solution of upper triangular systems
+    X = np.empty((n, n+1))
+    X[:, 0] = sp.linalg.solve_triangular(F, -f_n, lower=False)
+    X[:, 1] = sp.linalg.solve_triangular(F, G @ X[:, 0] + g_n, lower=False)
+    for i in range(2, n+1):
+        X[:, i] = sp.linalg.solve_triangular(F, G @ X[:, i-1], lower=False)
+
+    # Extract coefficients
+    coeffs = (-1)**(n+1) * X[0, ::-1] * np.prod(np.diag(A_hessenberg[1:]))
+    return coeffs
+
+
+def hyman_alternative(A):
     """
     Computes the coefficients of the characteristic polynomial of a matrix A
     using the Hyman’s method for Hessenberg matrices. 
@@ -140,14 +188,14 @@ def hyman(A):
 
     # compose matrix F and a vector f_n
     F = np.zeros((n,n))
-    ut_A = np.zeros((n,n))
+    ut_A = np.zeros((n,n)) 
 
     uti = np.triu_indices(n, -1)
     uti_n = np.triu_indices(n)
     ut_A[uti] = A[uti]
     F[uti_n[0][1:], uti_n[1][1:]] = ut_A[np.triu_indices(n,-1,n-1)]
     F[0, 0] = -1
-
+    
     f_n = A[:,-1]
 
     # compose matrix G and a vector g_n
@@ -207,3 +255,27 @@ def _verify_input(A, convert_to_numpy=False):
               + ", but got {}.".format(type(A).__name__)
         raise TypeError(msg)
     return A, A.shape[0]
+
+
+def _arnoldi_decomposition(A, b):
+    n = A.shape[0]
+    U = np.empty((n, n+1))
+    H = np.zeros((n+1, n))
+
+    U[:, 0] = b / np.linalg.norm(b)
+    for j in range(n):
+        w = A @ U[:, j]
+        H[:j+1, j] = U[:, :j+1].T @ w
+        u_tilde = w - U[:, :j+1] @ H[:j+1, j]
+
+        if np.linalg.norm(u_tilde) <= 0.7 * np.linalg.norm(w):
+            # Twice is enough
+            h_hat = U[:, :j+1].T @ u_tilde
+            H[:j+1, j] += h_hat
+            u_tilde -= U[:, :j+1] @ h_hat
+
+        H[j+1, j] = np.linalg.norm(u_tilde)
+        U[:, j+1] = u_tilde / H[j+1, j]
+
+    A_hessenberg = H[:-1]
+    return A_hessenberg
