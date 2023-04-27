@@ -21,7 +21,7 @@ def baseline(A, d=500):
         The coefficients of the characteristic polynomial of A collected in
         descending order in a numpy array. Example:
 
-            cp_A(x) = 5*x^3 - 9*x + 3   ===>   coeffs = [5, 0, 9, 3]
+            p_A(x) = 5*x^3 - 9*x + 3   ===>   coeffs = [5, 0, 9, 3]
     """
     A, n = _verify_input(A, convert_to_numpy=True)
 
@@ -75,7 +75,7 @@ def leverrier(A):
 
 
 
-def krylov(A, b=None, seed=None):
+def krylov(A, b=None, seed=42):
     """
     Computes the coefficients of the characteristic polynomial of a matrix A
     using the Krylov method. 
@@ -84,7 +84,7 @@ def krylov(A, b=None, seed=None):
     ----------
     A : numpy.ndarray or scipy.sparse.spmatrix
         The matrix for which the characteristic polynomial is computed.
-    b : int, optional, default is None
+    b : int, optional, default is 42
         Vector used to generate the Krylov basis:
 
             K_n(A, b) = [b, A*b, A^2*b, ..., A^(n-1)*b]
@@ -121,7 +121,7 @@ def krylov(A, b=None, seed=None):
     return coeffs
 
 
-def hyman(A, b=None, seed=None):
+def hyman(A, b=None, seed=42):
     """
     Computes the coefficients of the characteristic polynomial of a matrix A
     using the Hyman's method.
@@ -132,7 +132,7 @@ def hyman(A, b=None, seed=None):
         The matrix for which the characteristic polynomial is computed.
     b : int, optional, default is None
         Vector used to compute Arnoldi decomposition with.
-    seed : int, optional, default is None
+    seed : int, optional, default is 42
         If argument b is None, this seed is used to generate b randomly.
 
     Returns
@@ -150,25 +150,67 @@ def hyman(A, b=None, seed=None):
     # Compute Hessenberg matrix resulting from a full Arnoldi decomposition of A
     A_hessenberg = _arnoldi_decomposition(A, b)
 
-    # Compute the iteration vectors/matrices
+    # Define the iteration matrix
     F = np.c_[-np.eye(n, 1, 0), A_hessenberg[:, :-1]]
-    f_n = A_hessenberg[:, -1]
-
-    G = np.eye(n, n, 1)
-    g_n = np.eye(1, n, n-1).flatten()
 
     # Perform the iterative solution of upper triangular systems
-    X = np.empty((n, n+1))
-    X[:, 0] = sp.linalg.solve_triangular(F, -f_n, lower=False)
-    X[:, 1] = sp.linalg.solve_triangular(F, G @ X[:, 0] + g_n, lower=False)
-    for i in range(2, n+1):
-        X[:, i] = sp.linalg.solve_triangular(F, G @ X[:, i-1], lower=False)
+    X = np.zeros((n+1, n+1))
+    X[:-1, 0] = sp.linalg.solve_triangular(F, -A_hessenberg[:, -1], lower=False)
+    X[-1, 0] += 1  # This is equivalent to adding g_n = [0, 0, ..., 0, 1]
+    for i in range(1, n+1):
+        # Shifting X's columns is same as multiplying with G = np.eye(n, n, 1)
+        X[:-1, i] = sp.linalg.solve_triangular(F, X[1:, i-1], lower=False)
 
     # Extract coefficients
     coeffs = (-1)**(n+1) * X[0, ::-1] * np.prod(np.diag(A_hessenberg[1:]))
     return coeffs
 
 
+def hyman_alternative(A):
+    """
+    Computes the coefficients of the characteristic polynomial of a matrix A
+    using the Hyman’s method for Hessenberg matrices. 
+
+    Parameters
+    ----------
+    A : numpy.ndarray or scipy.sparse.spmatrix
+        The matrix for which the characteristic polynomial is computed.
+
+    Returns
+    -------
+    coeffs : numpy.ndarray
+        The coefficients of the characteristic polynomial of A.
+    """
+    n = len(A)
+
+    # compose matrix F and a vector f_n
+    F = np.zeros((n,n))
+    ut_A = np.zeros((n,n)) 
+
+    uti = np.triu_indices(n, -1)
+    uti_n = np.triu_indices(n)
+    ut_A[uti] = A[uti]
+    F[uti_n[0][1:], uti_n[1][1:]] = ut_A[np.triu_indices(n,-1,n-1)]
+    F[0, 0] = -1
+    
+    f_n = A[:,-1]
+
+    # compose matrix G and a vector g_n
+    G = np.diag(np.ones(n-1),1)
+    g_n = np.zeros(n)
+    g_n[n-1] = 1
+
+    X = np.zeros((n, n+1))
+    X[:, 0] = np.linalg.solve(F, - f_n)
+    X[:, 1] = np.linalg.solve(F, G.dot(X[:, 0]) + g_n)
+    
+    for i in range(2,n+1):
+        X[:, i] = np.linalg.solve(F, G.dot(X[:, i-1]) + g_n)
+
+    # TODO: understand how to extract coeffs 
+    coeffs = None
+
+    return coeffs
 
 
 def summation(A):
@@ -203,6 +245,7 @@ def summation(A):
 
 
 def _verify_input(A, convert_to_numpy=False):
+    """Verify that the matrix A is of correct type"""
     if convert_to_numpy and isinstance(A, sp.sparse.spmatrix):
         A = A.toarray()
     elif not isinstance(A, np.ndarray | sp.sparse.spmatrix):
@@ -213,7 +256,9 @@ def _verify_input(A, convert_to_numpy=False):
 
 
 def _arnoldi_decomposition(A, b):
+    """Compute Hessenberg matrix resulting from Arnoldi decomposition"""
     n = A.shape[0]
+
     U = np.empty((n, n+1))
     H = np.zeros((n+1, n))
 
@@ -232,5 +277,4 @@ def _arnoldi_decomposition(A, b):
         H[j+1, j] = np.linalg.norm(u_tilde)
         U[:, j+1] = u_tilde / H[j+1, j]
 
-    A_hessenberg = H[:-1]
-    return A_hessenberg
+    return H[:-1]

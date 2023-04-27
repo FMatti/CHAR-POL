@@ -1,8 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .methods import baseline
-
 
 def compute_coefficient_errors(coeffs, coeffs_baseline, mode="absolute"):
     if mode == "absolute":
