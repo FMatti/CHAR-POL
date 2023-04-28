@@ -1,7 +1,7 @@
 import numpy as np
 import scipy as sp
 
-def get_A1(n):
+def A_1(n):
     """
     Obtain the rank-1 modification of the tridiagonal Topelitz matrix.
 
@@ -23,7 +23,7 @@ def get_A1(n):
     return A
 
 
-def get_A2(n, seed=None):
+def A_2(n, seed=None):
     """
     Obtain a random tridiagonal matrix.
 
@@ -46,7 +46,7 @@ def get_A2(n, seed=None):
     return A
 
 
-def get_A3(n):
+def A_3(n):
     """
     Obtain the Frank matrix.
 

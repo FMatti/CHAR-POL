@@ -10,11 +10,11 @@ def compute_coefficient_errors(coeffs, coeffs_baseline, mode="absolute"):
     return errors
 
 
-def plot_coefficient_errors(coeffs, coeffs_baseline, mode="absolute", ax=None):
+def plot_coefficient_errors(coeffs, coeffs_baseline, mode="absolute", ax=None, **kwargs):
     errors = compute_coefficient_errors(coeffs, coeffs_baseline, mode)
 
     if ax is None:
         fig, ax = plt.subplots()
 
-    ax.set_yscale('log')
-    ax.plot(errors)
+    ax.set_yscale("log")
+    ax.plot(errors, **kwargs)
