@@ -40,7 +40,7 @@ def baseline(A, d=500):
 def leverrier(A):
     """
     Computes the coefficients of the characteristic polynomial 
-    of an n x n matrix A using Leverrier’s method:
+    of an n x n matrix A using Leverrier's method:
 
         p(x) := det(x*I - A) = c_0 * x^n + c_1 * x^(n - 1) + ... + c_n
 
@@ -72,7 +72,6 @@ def leverrier(A):
         Bk += np.multiply(ck, np.identity(n))
         Bk = A @ Bk
     return np.array(coeffs)
-
 
 
 def krylov(A, b=None, seed=42):
@@ -141,31 +140,32 @@ def hyman(A, b=None, seed=42):
         The coefficients of the characteristic polynomial of A.
     """
     # Check if the matrix A is of a type compatible with the algorithm
-    A, n = _verify_input(A, convert_to_numpy=False)
+    A, n = _verify_input(A, convert_to_numpy=True)
 
-    # Generate a random vector, if no Krylov basis vector was given
-    if b is None:
-        b = np.random.randn(n)
+    # Compute Hessenberg matrix corresponding to A, if A is not Hessenberg
+    if not np.tril(A, -2).any():
 
-    # Compute Hessenberg matrix resulting from a full Arnoldi decomposition of A
-    A_hessenberg = _arnoldi_decomposition(A, b)
+        # Generate a random vector, if no Krylov basis vector was given
+        if b is None:
+            b = np.random.randn(n)
+
+        # Compute the arnoldi decomposition
+        A = _arnoldi_decomposition(A, b)
 
     # Define the iteration matrix
-    F = np.c_[-np.eye(n, 1, 0), A_hessenberg[:, :-1]]
-
+    F = np.c_[-np.eye(n, 1, 0), A[:, :-1]]
+    
     # Perform the iterative solution of upper triangular systems
     X = np.zeros((n+1, n+1))
-    X[:-1, 0] = sp.linalg.solve_triangular(F, -A_hessenberg[:, -1], lower=False)
+    X[:-1, 0] = sp.linalg.solve_triangular(F, -A[:, -1], lower=False)
     X[-1, 0] += 1  # This is equivalent to adding g_n = [0, 0, ..., 0, 1]
     for i in range(1, n+1):
         # Shifting X's columns is same as multiplying with G = np.eye(n, n, 1)
         X[:-1, i] = sp.linalg.solve_triangular(F, X[1:, i-1], lower=False)
 
     # Extract coefficients
-    coeffs = (-1)**(n+1) * X[0, ::-1] * np.prod(np.diag(A_hessenberg[1:]))
+    coeffs = (-1)**(n+1) * X[0, ::-1] * np.prod(np.diag(A[1:]))
     return coeffs
-
-
 
 
 def summation(A):
@@ -210,7 +210,7 @@ def _verify_input(A, convert_to_numpy=False):
     return A, A.shape[0]
 
 
-def _arnoldi_decomposition(A, b):
+def _arnoldi_decomposition(A, b, reorth_tol=0.7):
     """Compute Hessenberg matrix resulting from Arnoldi decomposition"""
     n = A.shape[0]
 
@@ -223,7 +223,7 @@ def _arnoldi_decomposition(A, b):
         H[:j+1, j] = U[:, :j+1].T @ w
         u_tilde = w - U[:, :j+1] @ H[:j+1, j]
 
-        if np.linalg.norm(u_tilde) <= 0.7 * np.linalg.norm(w):
+        if np.linalg.norm(u_tilde) <= reorth_tol * np.linalg.norm(w):
             # Twice is enough
             h_hat = U[:, :j+1].T @ u_tilde
             H[:j+1, j] += h_hat
