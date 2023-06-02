@@ -1,6 +1,7 @@
 import numpy as np
 import scipy as sp
 
+
 def A_1(n):
     """
     Obtain the rank-1 modification of the tridiagonal Topelitz matrix.
@@ -23,7 +24,7 @@ def A_1(n):
     return A
 
 
-def A_2(n, seed=None):
+def A_2(n, seed=42):
     """
     Obtain a random tridiagonal matrix.
 
@@ -31,7 +32,7 @@ def A_2(n, seed=None):
     ----------
     n : int, n >= 1
         Size of the matrix A.
-    seed : int, optional, default is None
+    seed : int, optional, default is 42
         Seed for the random number generator.
 
     Returns
